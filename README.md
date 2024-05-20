@@ -1,0 +1,1 @@
+This Python Code is to merge the master excel file with updates excel file using the primary code (Eg: Employer Code). It is mainly designed to process & update the Employer Code Master Excel File of ESIC
