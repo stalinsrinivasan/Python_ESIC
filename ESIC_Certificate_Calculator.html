@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ESIC Branch Office - Payment Calculator</title>
+<style>
+  :root{
+    --ink:#1c2530; --sub:#5b6b7a; --line:#d8dfe6; --bg:#f4f6f8; --card:#ffffff;
+    --accent:#0b5a9e; --accent-light:#e7f1fb;
+    --warn-bg:#fff4e5; --warn-bd:#f0b95b; --warn-tx:#7a4a00;
+    --err-bg:#fdeceb; --err-bd:#e08b84; --err-tx:#8a1f14;
+    --ok-bg:#e9f7ee; --ok-bd:#8fcfa0; --ok-tx:#1c6b34;
+    --auto-bg:#f0f6ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:Arial, Helvetica, sans-serif; background:var(--bg); color:var(--ink);
+    margin:0; padding:14px; line-height:1.3;
+  }
+  .wrap{max-width:1600px; margin:0 auto;}
+  h1{font-size:19px; margin:0 0 3px; color:var(--accent);}
+  .page-header{background:var(--accent-light); border-radius:8px; padding:12px 16px 10px; margin-bottom:10px; border:1px solid #d3e6f7;}
+  .page-header h1{margin:0 0 3px;}
+  .page-header .watermark-sub{margin:0;}
+  .subtitle{color:var(--sub); font-size:12px; margin-bottom:10px;}
+  .watermark-sub{color:rgba(11,90,158,0.35); font-size:10px; letter-spacing:.04em; margin:-2px 0 10px; font-weight:400; user-select:none;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:7px; padding:12px 14px; margin-bottom:10px;}
+  .card h2{font-size:13.5px; margin:0 0 8px; color:var(--accent);}
+  .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  @media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:480px){.grid{grid-template-columns:1fr;}}
+  .twocol{display:grid; grid-template-columns:1.4fr 1fr; gap:10px; align-items:start;}
+  .twocol .col-right{display:flex; flex-direction:column; gap:10px;}
+  .twocol .card{margin-bottom:0;}
+  @media(max-width:800px){.twocol{grid-template-columns:1fr;}}
+  .flags-inline-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--sub); margin:10px 0 4px; padding-top:8px; border-top:1px solid var(--line);}
+  label{display:block; font-size:11px; color:var(--sub); margin-bottom:2px;}
+  input, select{
+    width:100%; padding:5px 7px; border:1px solid var(--line); border-radius:4px;
+    font-size:12.5px; font-family:inherit; background:#fff; color:var(--ink);
+  }
+  input:disabled{background:#eef1f4; color:#7a8794;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th, td{border:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top;}
+  th{background:var(--accent-light); font-size:11px; color:var(--accent); font-weight:700;}
+  td.days{font-weight:700; text-align:center; white-space:nowrap;}
+  td.rm{text-align:center; width:30px;}
+  .rm-btn{background:none; border:none; color:#b23; cursor:pointer; font-size:15px; line-height:1;}
+  .rm-btn:hover{color:#e00;}
+  tr.auto-row td{background:var(--auto-bg); font-style:italic; color:#334;}
+  tr.flag-highlight td{background:#fff3b0 !important; transition:background .4s;}
+  .from-cell{display:flex; gap:4px; align-items:center;}
+  .from-cell input{flex:1;}
+  .add-row-btn, .primary-btn{
+    background:var(--accent); color:#fff; border:none; padding:6px 13px; border-radius:5px;
+    font-size:12.5px; cursor:pointer; margin-top:6px;
+  }
+  .add-row-btn:hover, .primary-btn:hover{background:#08477e;}
+  .secondary-btn{
+    background:#fff; color:var(--accent); border:1px solid var(--accent); padding:6px 13px;
+    border-radius:5px; font-size:12.5px; cursor:pointer; margin-top:6px; margin-left:6px;
+  }
+  .totals{display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;}
+  .stat{background:var(--accent-light); border-radius:6px; padding:6px 12px; min-width:130px;}
+  .stat .label{font-size:10px; color:var(--sub); text-transform:uppercase; letter-spacing:.03em;}
+  .stat .value{font-size:17px; font-weight:700; color:var(--accent);}
+  .stat.mismatch{background:var(--warn-bg);} .stat.mismatch .value{color:var(--warn-tx);}
+  .flag{border-radius:6px; padding:6px 10px; margin-bottom:5px; font-size:12.5px;}
+  .flag.warn{background:var(--warn-bg); border:1px solid var(--warn-bd); color:var(--warn-tx);}
+  .flag.err{background:var(--err-bg); border:1px solid var(--err-bd); color:var(--err-tx);}
+  .flag.info{background:var(--ok-bg); border:1px solid var(--ok-bd); color:var(--ok-tx);}
+  .flag.clickable{cursor:pointer;}
+  .flag.clickable:hover{filter:brightness(0.96);}
+  .flag b{display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:1px; opacity:.8;}
+  .no-flags{color:var(--sub); font-size:12.5px;}
+  .note{font-size:12px; color:var(--sub); border-top:1px dashed var(--line); margin-top:8px; padding-top:6px;}
+  .legend{font-size:12px; color:var(--sub); margin-top:6px;}
+  .legend b{color:var(--ink);}
+  .checkline{display:flex; align-items:center; gap:5px; font-size:12.5px; color:var(--ink); padding-top:4px;}
+  .checkline input{width:auto;}
+
+  .table-scroll{width:100%; overflow-x:auto;}
+  .table-scroll table{min-width:640px;}
+  @media(max-width:800px){.table-scroll table{min-width:0;}}
+
+  /* Portrait / narrow-screen layout: turn wide tables into stacked cards
+     so nothing needs horizontal scrolling to be read. */
+  @media(max-width:700px){
+    body{padding:10px;}
+    h1{font-size:17px;}
+    .card{padding:10px 11px;}
+    table.responsive-table thead{display:none;}
+    table.responsive-table, table.responsive-table tbody,
+    table.responsive-table tr, table.responsive-table td{display:block; width:100%;}
+    table.responsive-table{border:none;}
+    table.responsive-table tr{
+      border:1px solid var(--line); border-radius:7px; padding:8px 9px 6px; margin-bottom:8px; background:#fff;
+    }
+    table.responsive-table tr.auto-row{background:var(--auto-bg);}
+    table.responsive-table td{border:none; padding:4px 0;}
+    table.responsive-table td[data-label]::before{
+      content: attr(data-label); display:block; font-size:10px; font-weight:700;
+      color:var(--sub); text-transform:uppercase; letter-spacing:.02em; margin-bottom:2px;
+    }
+    table.responsive-table td.days{text-align:left;}
+    table.responsive-table td.rm{width:100%; text-align:right; padding-top:2px;}
+    .from-cell{display:block;}
+    .totals{gap:8px;}
+    .stat{min-width:calc(50% - 8px); flex:1 1 calc(50% - 8px);}
+  }
+
+  .date-popup{
+    position:fixed; z-index:1000; background:#fff; border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,.18); padding:10px; width:230px; font-size:12.5px;
+  }
+  .dp-header{display:flex; align-items:center; gap:4px; margin-bottom:6px;}
+  .dp-header select{flex:1; padding:3px; font-size:12px;}
+  .dp-header input[type=number]{width:64px; padding:3px; font-size:12px;}
+  .dp-nav{background:var(--accent-light); border:none; border-radius:4px; width:24px; height:24px; cursor:pointer; color:var(--accent); font-size:14px;}
+  .dp-dow{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; color:var(--sub); font-size:10.5px; margin-bottom:2px;}
+  .dp-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px;}
+  .dp-day{padding:5px 0; text-align:center; border-radius:4px; cursor:pointer; background:#fff;}
+  .dp-day:hover{background:var(--accent-light);}
+  .dp-day.dp-other{color:#bbb;}
+  .dp-day.dp-selected{background:var(--accent); color:#fff; font-weight:700;}
+  .dp-day.dp-today{outline:1px solid var(--accent);}
+  .dp-footer{display:flex; justify-content:space-between; margin-top:6px;}
+  .dp-footer button{background:none; border:1px solid var(--line); border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-header">
+    <h1>ESIC Branch Office - Payment Calculator</h1>
+    <div class="watermark-sub">BO Tuticorin, SRO Tirunelveli, Tamilnadu</div>
+  </div>
+
+  <div class="card">
+    <h2>Date Calculator</h2>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr);">
+      <div><label>From Date</label><input type="text" id="dcFrom" class="date-input" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="dcCalc()"></div>
+      <div><label>To Date</label><input type="text" id="dcTo" class="date-input" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="dcCalc()"></div>
+      <div><label>No. of Days (inclusive)</label><input type="text" id="dcDays" inputmode="numeric" placeholder="e.g. 63" onchange="dcCalc()"></div>
+    </div>
+    <div class="note" id="dcResult" style="border-top:none; margin-top:6px; padding-top:0; font-size:13px; color:var(--ink);"></div>
+    <button class="secondary-btn" onclick="dcClear()" style="margin-top:6px;">Clear</button>
+  </div>
+
+  <div class="twocol">
+    <div class="col-left">
+      <div class="card">
+        <h2>Certificates</h2>
+        <div style="max-width:280px; margin-bottom:10px;">
+          <label>Start of Sickness Spell <span style="font-weight:400; color:var(--sub);">(optional)</span></label>
+          <input type="text" id="spellStartInput" class="date-input" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="recalc()">
+        </div>
+        <div class="table-scroll">
+        <table id="certTable" class="responsive-table">
+          <thead>
+            <tr>
+              <th style="width:18%">Certificate Type</th>
+              <th style="width:15%">Issue / RO-Approval Date</th>
+              <th style="width:17%">From</th>
+              <th style="width:13%">To</th>
+              <th style="width:10%">Same-day fit?</th>
+              <th style="width:8%">Days</th>
+              <th class="no-print"></th>
+            </tr>
+          </thead>
+          <tbody id="certBody"></tbody>
+        </table>
+        </div>
+        <button class="add-row-btn" onclick="addRow()">+ Add certificate</button>
+        <button class="secondary-btn" onclick="newCase()">Clear All</button>
+
+        <div class="flags-inline-label">Flags &amp; checks</div>
+        <div id="flags"></div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="card">
+        <h2>Computed Spell Timeline</h2>
+        <div class="grid" style="grid-template-columns:repeat(2,1fr); margin-bottom:10px;">
+          <div><label>Spell Start (auto)</label><input id="spellStart" disabled></div>
+          <div><label>Spell End (auto)</label><input id="spellEnd" disabled></div>
+        </div>
+        <table class="responsive-table">
+          <thead><tr><th style="width:26%">Type</th><th style="width:18%">From</th><th style="width:18%">To</th><th style="width:10%">Days</th></tr></thead>
+          <tbody id="timelineBody"></tbody>
+        </table>
+
+        <div class="totals">
+          <div class="stat"><div class="label">Total certified days</div><div class="value" id="totalDays">0</div></div>
+          <div class="stat" id="spellStat"><div class="label">Spell length (start→end)</div><div class="value" id="spellDays">0</div></div>
+          <div class="stat mismatch" id="diffStat" style="display:none"><div class="label">Uncovered / overlapping days</div><div class="value" id="diffDays">0</div></div>
+          <div class="stat" id="payableStat"><div class="label">Payable days (after 2-day waiting period)</div><div class="value" id="payableDays">0</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>AD / AE Certificates Details:</h2>
+        <table class="responsive-table">
+          <thead><tr><th style="width:30%">Type</th><th style="width:20%">From</th><th style="width:20%">To</th><th style="width:10%">Days</th></tr></thead>
+          <tbody id="manualErpBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="datePopup" class="date-popup" style="display:none;">
+  <div class="dp-header">
+    <button type="button" class="dp-nav" onclick="dpChangeMonth(-1)">‹</button>
+    <select id="dpMonth" onchange="dpMonthYearChange()"></select>
+    <input type="number" id="dpYear" onchange="dpMonthYearChange()">
+    <button type="button" class="dp-nav" onclick="dpChangeMonth(1)">›</button>
+  </div>
+  <div class="dp-dow"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+  <div class="dp-grid" id="dpGrid"></div>
+  <div class="dp-footer">
+    <button type="button" onclick="dpSetToday()">Today</button>
+    <button type="button" onclick="dpClear()">Clear</button>
+  </div>
+</div>
+
+<script>
+const MAIN5 = ['First','First-cum-Final','Intermediate','Special Intermediate','Final'];
+const SAMEDAY_TYPES = ['Final','First-cum-Final'];
+const AD = 'Admission-Discharge';
+const AE = 'Alternative Evidence';
+let rowId = 0;
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function d(v){
+  if(!v) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(v.trim());
+  if(!m) return null;
+  const day=+m[1], month=+m[2], year=+m[3];
+  if(month<1||month>12) return null;
+  const dt = new Date(year, month-1, day);
+  if(dt.getFullYear()!==year || dt.getMonth()!==(month-1) || dt.getDate()!==day) return null;
+  return dt;
+}
+function toInputStr(dt){
+  if(!dt) return '';
+  return `${pad2(dt.getDate())}/${pad2(dt.getMonth()+1)}/${dt.getFullYear()}`;
+}
+function fmtDate(dt){
+  if(!dt) return '—';
+  return toInputStr(dt);
+}
+function daysBetween(a,b){
+  return Math.round((b - a) / 86400000) + 1;
+}
+function addDays(dt,n){
+  return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()+n);
+}
+function sameDate(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function autoSlash(e){
+  let v = e.target.value.replace(/[^\d]/g,'');
+  if(v.length>8) v = v.slice(0,8);
+  let out = v;
+  if(v.length>=5) out = v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4);
+  else if(v.length>=3) out = v.slice(0,2)+'/'+v.slice(2);
+  e.target.value = out;
+}
+
+function addRow(){
+  const tbody = document.getElementById('certBody');
+  const tr = document.createElement('tr');
+  tr.dataset.id = ++rowId;
+  tr.innerHTML = `
+    <td data-label="Certificate Type"><select class="c-type" onchange="onTypeChange(this.closest('tr'))">
+      <option value="First">First</option>
+      <option value="First-cum-Final">First-cum-Final</option>
+      <option value="Intermediate">Intermediate</option>
+      <option value="Special Intermediate">Special Intermediate</option>
+      <option value="Final">Final</option>
+      <option value="Alternative Evidence">Alternative Evidence</option>
+      <option value="Admission-Discharge">Admission-Discharge</option>
+    </select></td>
+    <td data-label="Issue / RO-Approval Date"><input type="text" class="date-input c-issue" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="onIssueChange(this.closest('tr'))"></td>
+    <td class="from-cell" data-label="From">
+      <input type="text" class="date-input c-from" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="onFromChange(this.closest('tr'))">
+    </td>
+    <td data-label="To"><input type="text" class="date-input c-to" placeholder="DD/MM/YYYY" inputmode="numeric" autocomplete="off" oninput="autoSlash(event)" onchange="onToChange(this.closest('tr'))"></td>
+    <td style="text-align:center;" data-label="Same-day fit?"><input type="checkbox" class="c-sameday" onchange="onSameDayChange(this.closest('tr'))" disabled></td>
+    <td class="days" data-label="Days">0</td>
+    <td class="rm no-print"><button class="rm-btn" onclick="this.closest('tr').remove(); recalc();" title="Remove row">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelectorAll('.date-input').forEach(inp=> inp.addEventListener('focus', ()=>openDatePicker(inp)));
+  onTypeChange(tr);
+  recalc();
+}
+
+function newCase(){
+  if(!confirm('Start a new case? This clears all certificates entered so far.')) return;
+  document.getElementById('spellStartInput').value = '';
+  document.getElementById('certBody').innerHTML = '';
+  rowId = 0;
+  recalc();
+}
+
+function onIssueChange(tr){
+  recalc();
+}
+
+function onToChange(tr){
+  const type = tr.querySelector('.c-type').value;
+  if(type === AD){
+    tr.querySelector('.c-issue').value = tr.querySelector('.c-to').value;
+  }
+  if(tr.querySelector('.c-sameday') && tr.querySelector('.c-sameday').checked){
+    // same-day fit forces To = From; ignore direct edits to To in that state
+    tr.querySelector('.c-to').value = tr.querySelector('.c-from').value;
+  }
+  recalc();
+}
+
+function onTypeChange(tr){
+  const type = tr.querySelector('.c-type').value;
+  const issueInput = tr.querySelector('.c-issue');
+  const fromInput = tr.querySelector('.c-from');
+  const toInput = tr.querySelector('.c-to');
+  const sameDayInput = tr.querySelector('.c-sameday');
+
+  if(MAIN5.includes(type)){
+    issueInput.disabled = true;
+    issueInput.value = fromInput.value;
+  } else if(type === AD){
+    issueInput.disabled = true;
+    issueInput.value = toInput.value;
+  } else {
+    issueInput.disabled = false;
+  }
+
+  if(SAMEDAY_TYPES.includes(type)){
+    sameDayInput.disabled = false;
+  } else {
+    sameDayInput.checked = false;
+    sameDayInput.disabled = true;
+  }
+
+  if(SAMEDAY_TYPES.includes(type) && sameDayInput.checked){
+    toInput.disabled = true;
+    toInput.value = fromInput.value;
+  } else {
+    toInput.disabled = false;
+  }
+
+  recalc();
+}
+
+function onFromChange(tr){
+  const type = tr.querySelector('.c-type').value;
+  if(MAIN5.includes(type)){
+    tr.querySelector('.c-issue').value = tr.querySelector('.c-from').value;
+  }
+  if(tr.querySelector('.c-sameday').checked){
+    tr.querySelector('.c-to').value = tr.querySelector('.c-from').value;
+  }
+  recalc();
+}
+
+function onSameDayChange(tr){
+  const toInput = tr.querySelector('.c-to');
+  if(tr.querySelector('.c-sameday').checked){
+    toInput.value = tr.querySelector('.c-from').value;
+    toInput.disabled = true;
+  } else {
+    toInput.disabled = false;
+  }
+  recalc();
+}
+
+function thresholdFor(prev,cur){
+  if(cur.sameDayFit) return 1;
+  if(prev.type==='Special Intermediate') return 14;
+  if(prev.type===AD) return cur.type==='Final' ? 3 : 15;
+  if(cur.type===AD) return 6;
+  return 30;
+}
+function paraFor(prev,cur){
+  if(cur.sameDayFit) return '2.35.2 I(b)(ii)';
+  if(prev.type==='Special Intermediate') return '2.35.2 V';
+  if(prev.type===AD) return cur.type==='Final' ? '2.35.2 VI(B)(a)' : '2.35.2 VI(B)(b)';
+  if(cur.type===AD) return '2.36.2(i)';
+  return '2.53(ii)';
+}
+
+function recalc(){
+  const rows = Array.from(document.querySelectorAll('#certBody tr'));
+  const manualEntries = [];
+  const flags = [];
+  const push = (level, para, text, rowEl) => flags.push({level, para, text, rowEl});
+
+  rows.forEach(tr=>{
+    const type = tr.querySelector('.c-type').value;
+    const issue = d(tr.querySelector('.c-issue').value);
+    const from = d(tr.querySelector('.c-from').value);
+    let to = d(tr.querySelector('.c-to').value);
+    const sameDayFit = SAMEDAY_TYPES.includes(type) && tr.querySelector('.c-sameday').checked;
+    if(sameDayFit) to = from;
+    const dayCell = tr.querySelector('.days');
+    let days = 0;
+    if(from && to && to >= from){
+      days = sameDayFit ? 0 : daysBetween(from, to);
+      dayCell.textContent = days;
+      manualEntries.push({type, issue, from, to, days, sameDayFit, tr});
+    } else if(from && to && to < from){
+      dayCell.textContent = '⚠';
+      push('err', 'date-range', `This row's To date (${fmtDate(to)}) is before its From date (${fmtDate(from)}) — the entry is being ignored until fixed.`, tr);
+    } else {
+      dayCell.textContent = '—';
+    }
+  });
+
+  manualEntries.sort((a,b)=>a.from-b.from);
+
+  // Duplicate detection
+  for(let i=0;i<manualEntries.length;i++){
+    for(let j=i+1;j<manualEntries.length;j++){
+      const a=manualEntries[i], b=manualEntries[j];
+      if(a.type===b.type && a.from.getTime()===b.from.getTime() && a.to.getTime()===b.to.getTime()){
+        push('err', 'duplicate', `Two "${a.type}" entries have identical dates (${fmtDate(a.from)}–${fmtDate(a.to)}) — check for a double entry.`, b.tr);
+      }
+    }
+  }
+
+  // Admission-Discharge span exceeding Branch Manager's own authority
+  manualEntries.forEach(e=>{
+    if(e.type === AD && e.days > 30){
+      push('warn', '2.53(ii)', `Admission-Discharge certificate spans ${e.days} day(s) (${fmtDate(e.from)}–${fmtDate(e.to)}), exceeding 30 days — this exceeds the Branch Manager's own authority and needs RO/SRO approval; it cannot be accepted as Alternative Evidence at Branch Manager level.`, e.tr);
+    }
+  });
+
+  // Start of Sickness Spell — optional user-entered date; if earlier than the first
+  // certificate, the back period is auto-accepted within a tolerance (1 day for a
+  // doctor-issued starting certificate, 3 days when the spell starts with an
+  // Admission-Discharge certificate); beyond that it needs RO/SRO approval.
+  const userSpellStart = d(document.getElementById('spellStartInput').value);
+  let backPeriodEntry = null;
+  if(userSpellStart && manualEntries.length){
+    const first = manualEntries[0];
+    if(userSpellStart < first.from){
+      const uncovered = daysBetween(userSpellStart, first.from) - 1;
+      const threshold = first.type === AD ? 3 : 1;
+      if(uncovered > 0){
+        const startKind = first.type === AD ? 'an Admission-Discharge' : 'a doctor-issued';
+        if(uncovered <= threshold){
+          backPeriodEntry = {type:'Accepted Alternative Evidence', from:userSpellStart, to:addDays(first.from,-1), days:uncovered, auto:true};
+          push('info', 'Start of Spell', `Start of Sickness Spell (${fmtDate(userSpellStart)}) is ${uncovered} day(s) before the first certificate (${fmtDate(first.from)}) — within the Branch Manager's own authority (${threshold}-day back period for ${startKind} starting certificate) and auto-accepted as Accepted Alternative Evidence.`, first.tr);
+        } else {
+          push('warn', 'Start of Spell', `Start of Sickness Spell (${fmtDate(userSpellStart)}) is ${uncovered} day(s) before the first certificate (${fmtDate(first.from)}) — this exceeds the Branch Manager's own authority (${threshold}-day limit for ${startKind} starting certificate). Send for RO/SRO approval and create a manual "Alternative Evidence" entry with the approval date to cover this period.`, first.tr);
+        }
+      }
+    } else if(userSpellStart > first.from){
+      push('warn', 'Start of Spell', `Start of Sickness Spell (${fmtDate(userSpellStart)}) is after the first certificate's From date (${fmtDate(first.from)}) — check the entry; the spell cannot start after its first certificate.`, first.tr);
+    }
+  }
+
+  // Build computed timeline with auto-inserted Accepted Alternative Evidence
+  const timeline = [];
+  if(backPeriodEntry) timeline.push(backPeriodEntry);
+  for(let i=0;i<manualEntries.length;i++){
+    timeline.push(manualEntries[i]);
+    if(i < manualEntries.length-1){
+      const prev = manualEntries[i], cur = manualEntries[i+1];
+      const gap = daysBetween(prev.to, cur.from) - 2;
+      if(gap > 0){
+        const thr = thresholdFor(prev, cur);
+        const para = paraFor(prev, cur);
+        const dueDate = fmtDate(addDays(prev.to, 1));
+        if(gap <= thr){
+          const gFrom = addDays(prev.to, 1), gTo = addDays(cur.from, -1);
+          timeline.push({type:'Accepted Alternative Evidence', from:gFrom, to:gTo, days:gap, auto:true});
+          if(cur.sameDayFit){
+            push('info', para, `Due date ${dueDate} auto-accepted as Accepted Alternative Evidence — the same-day-fit Final was examined only ${gap} day(s) after the due date (within the 1-day tolerance).`, cur.tr);
+          } else {
+            push('info', para, `Auto-accepted ${gap} day(s) between "${prev.type}" (ending ${fmtDate(prev.to)}) and "${cur.type}" (starting ${fmtDate(cur.from)}) as Accepted Alternative Evidence — within Branch Manager's own authority.`, cur.tr);
+          }
+        } else {
+          if(cur.sameDayFit){
+            push('warn', para, `Due date was ${dueDate}, but the same-day-fit Final was only examined on ${fmtDate(cur.from)} — the ${gap} day(s) in between (${dueDate} to ${fmtDate(addDays(cur.from,-1))}) are not automatically payable. Per para 2.35.2 I(b)(ii), payment is capped at the due date unless these days are covered by a manual "Alternative Evidence" entry with the RO/SRO approval date.`, cur.tr);
+          } else {
+            push('warn', para, `Gap of ${gap} day(s) between "${prev.type}" (ending ${fmtDate(prev.to)}) and "${cur.type}" (starting ${fmtDate(cur.from)}) exceeds Branch Manager's own authority (limit ${thr} days) — add an "Alternative Evidence" entry with the RO/SRO approval date to cover this period.`, cur.tr);
+          }
+        }
+      } else if(gap < 0){
+        push('err', 'continuity', `Overlap of ${-gap} day(s) between "${prev.type}" (ending ${fmtDate(prev.to)}) and "${cur.type}" (starting ${fmtDate(cur.from)}) — check for double-counted days.`, cur.tr);
+      }
+    }
+  }
+
+  // Type-specific checks on manual entries
+  const spellStart = userSpellStart || (manualEntries.length ? manualEntries[0].from : null);
+  manualEntries.forEach((e, idx)=>{
+    const span = e.days;
+
+    if(e.type === 'First-cum-Final' || e.type === 'Final'){
+      if(e.issue){
+        const fitnessLead = daysBetween(e.issue, e.to) - 1;
+        if(fitnessLead > 3){
+          push('warn', '2.16 / 2.19.1', `"${e.type}" issued ${fmtDate(e.issue)} certifies fitness on ${fmtDate(e.to)}, ${fitnessLead} day(s) later — a First-cum-Final/Final certificate can only certify fitness up to the 3rd day after examination.`, e.tr);
+        }
+      }
+    }
+
+    if(e.type === 'Intermediate'){
+      if(span > 7){
+        push('warn', '2.21 / 2.48.1(ii)', `"Intermediate" certificate covers ${span} days — ordinary intermediate certificates should be issued at intervals of not more than 7 days. A longer span is accepted only as alternative evidence, at Branch Manager's discretion.`, e.tr);
+      }
+    }
+
+    if(e.type === 'Special Intermediate'){
+      if(spellStart && e.issue){
+        const sinceStart = daysBetween(spellStart, e.issue);
+        if(sinceStart < 28){
+          push('warn', '2.23', `"Special Intermediate" issued on day ${sinceStart} of the spell — this certificate is meant for sickness that has already continued at least 28 days. Consider whether an ordinary Intermediate certificate applies instead.`, e.tr);
+        }
+      }
+      if(span > 42){
+        push('err', '2.24', `"Special Intermediate" covers ${span} days — beyond the 42-day ceiling. Must be referred to Regional Office; Insurance Medical Officers should not issue beyond 28 days at a time.`, e.tr);
+      } else if(span > 28){
+        push('warn', '2.24', `"Special Intermediate" covers ${span} days (28–42) — acceptable only if it carries no adverse remarks by the Insurance Medical Officer.`, e.tr);
+      }
+    }
+
+    if(e.type === AE){
+      const prev = manualEntries[idx-1], next = manualEntries[idx+1];
+      let thr = 30, para = '2.53(ii)';
+      if(prev && prev.type===AD){ thr = 15; para='2.35.2 VI(B)(b)'; }
+      if(next && next.type===AD){ thr = 6; para='2.36.2(i)'; }
+      if(prev && prev.type==='Special Intermediate'){ thr = 14; para='2.35.2 V'; }
+      if(next && next.sameDayFit){ thr = 1; para='2.35.2 I(b)(ii)'; }
+      if(span <= thr){
+        push('info', para, `"Alternative Evidence" (${fmtDate(e.from)}–${fmtDate(e.to)}, ${span} days) is within Branch Manager's own authority (≤${thr} days) — this could have been left for the tool to auto-accept instead of a manual RO/SRO entry.`, e.tr);
+      }
+    }
+  });
+
+  if(manualEntries.length && manualEntries[0].type === 'Final'){
+    push('err', '2.18.2', `The earliest certificate in this spell is a "Final" certificate with no preceding First certificate or hospital Admission-Discharge certificate — a Final certificate normally requires one of these first.`, manualEntries[0].tr);
+  }
+
+  // Manual ERP display: an Alternative Evidence / Admission-Discharge entry that is
+  // immediately followed by an auto-accepted gap must be created in ERP as covering
+  // that gap too (the gap itself is never separately entered in ERP).
+  const manualErpDisplay = [];
+  for(let i=0;i<timeline.length;i++){
+    const item = timeline[i];
+    if(item.type === AE || item.type === AD){
+      const next = timeline[i+1];
+      let mergedTo = item.to;
+      if(next && next.type === 'Accepted Alternative Evidence'){
+        mergedTo = next.to;
+      }
+      const mergedDays = daysBetween(item.from, mergedTo);
+      manualErpDisplay.push({type:item.type, from:item.from, to:mergedTo, days:mergedDays});
+    }
+  }
+
+  renderTimeline(timeline);
+  renderManualErpList(manualErpDisplay);
+  renderFlags(flags);
+
+  const total = timeline.reduce((s,e)=>s+e.days,0);
+  const dayBearing = timeline.filter(e=>e.days>0);
+  const minFrom = dayBearing.length ? dayBearing[0].from : null;
+  const maxTo = dayBearing.length ? dayBearing[dayBearing.length-1].to : null;
+  const spellDays = (minFrom && maxTo) ? daysBetween(minFrom, maxTo) : 0;
+
+  document.getElementById('totalDays').textContent = total;
+  document.getElementById('spellStart').value = minFrom ? fmtDate(minFrom) : '';
+  document.getElementById('spellEnd').value = maxTo ? fmtDate(maxTo) : '';
+  document.getElementById('spellDays').textContent = spellDays;
+
+  const diff = spellDays - total;
+  const diffStat = document.getElementById('diffStat');
+  if(spellDays > 0 && diff !== 0){
+    diffStat.style.display = 'block';
+    document.getElementById('diffDays').textContent = diff;
+  } else {
+    diffStat.style.display = 'none';
+  }
+
+  const payable = Math.max(0, total - 2);
+  document.getElementById('payableDays').textContent = payable;
+}
+
+function renderTimeline(timeline){
+  const tbody = document.getElementById('timelineBody');
+  if(!timeline.length){
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#5b6b7a;">No entries yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = timeline.map(e=>{
+    let label = e.type === 'Accepted Alternative Evidence' ? 'AAE' : e.type;
+    if(e.auto) label += ' (auto)';
+    if(e.sameDayFit) label += ' (same-day fit — exam date not counted)';
+    const cls = e.auto ? ' class="auto-row"' : '';
+    return `<tr${cls}><td data-label="Type">${label}</td><td data-label="From">${fmtDate(e.from)}</td><td data-label="To">${fmtDate(e.to)}</td><td class="days" data-label="Days">${e.days}</td></tr>`;
+  }).join('');
+}
+
+function renderManualErpList(rows){
+  const tbody = document.getElementById('manualErpBody');
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="4" style="color:#5b6b7a;">-</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(e=>
+    `<tr><td data-label="Type">${e.type}</td><td data-label="From">${fmtDate(e.from)}</td><td data-label="To">${fmtDate(e.to)}</td><td class="days" data-label="Days">${e.days}</td></tr>`
+  ).join('');
+}
+
+function renderFlags(flags){
+  const el = document.getElementById('flags');
+  el.innerHTML = '';
+  if(!flags.length){
+    el.innerHTML = '<div class="no-flags">-</div>';
+    return;
+  }
+  flags.forEach(f=>{
+    const div = document.createElement('div');
+    div.className = 'flag ' + f.level + (f.rowEl ? ' clickable' : '');
+    div.innerHTML = `<b>Para ${f.para}</b>${f.text}`;
+    if(f.rowEl){
+      div.title = 'Click to jump to the certificate row';
+      div.onclick = ()=> jumpToRow(f.rowEl);
+    }
+    el.appendChild(div);
+  });
+}
+
+function jumpToRow(tr){
+  if(!tr || !tr.isConnected) return;
+  tr.scrollIntoView({behavior:'smooth', block:'center'});
+  tr.classList.add('flag-highlight');
+  setTimeout(()=> tr.classList.remove('flag-highlight'), 1800);
+}
+
+/* ---------- Date picker popup ---------- */
+let dpActiveInput = null;
+let dpViewYear, dpViewMonth;
+let dpSelectedDate = null;
+
+function ensureDpMonthOptions(){
+  const sel = document.getElementById('dpMonth');
+  if(sel.options.length) return;
+  const names=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  names.forEach((nm,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=nm; sel.appendChild(o); });
+}
+
+function openDatePicker(input){
+  dpActiveInput = input;
+  ensureDpMonthOptions();
+  const existing = d(input.value);
+  const base = existing || new Date();
+  dpViewYear = base.getFullYear();
+  dpViewMonth = base.getMonth();
+  dpSelectedDate = existing;
+  renderDp();
+  const popup = document.getElementById('datePopup');
+  popup.style.display = 'block';
+  const rect = input.getBoundingClientRect();
+  let top = rect.bottom + 4;
+  let left = rect.left;
+  const popW = 230;
+  if(left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+  if(top + 300 > window.innerHeight) top = Math.max(8, rect.top - 300 - 4);
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+}
+
+function closeDatePicker(){
+  document.getElementById('datePopup').style.display = 'none';
+  dpActiveInput = null;
+}
+
+function renderDp(){
+  document.getElementById('dpMonth').value = dpViewMonth;
+  document.getElementById('dpYear').value = dpViewYear;
+  const grid = document.getElementById('dpGrid');
+  grid.innerHTML = '';
+  const firstOfMonth = new Date(dpViewYear, dpViewMonth, 1);
+  const startDow = firstOfMonth.getDay();
+  const daysInMonth = new Date(dpViewYear, dpViewMonth+1, 0).getDate();
+  const daysInPrevMonth = new Date(dpViewYear, dpViewMonth, 0).getDate();
+  const today = new Date();
+  const cells = [];
+  for(let i=0;i<startDow;i++){
+    const day = daysInPrevMonth - startDow + 1 + i;
+    const m = dpViewMonth===0?11:dpViewMonth-1, y = dpViewMonth===0?dpViewYear-1:dpViewYear;
+    cells.push({day, other:true, y, m});
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    cells.push({day, other:false, y:dpViewYear, m:dpViewMonth});
+  }
+  let nextDay=1;
+  while(cells.length < 42){
+    const m = dpViewMonth===11?0:dpViewMonth+1, y = dpViewMonth===11?dpViewYear+1:dpViewYear;
+    cells.push({day:nextDay, other:true, y, m});
+    nextDay++;
+  }
+  cells.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'dp-day' + (c.other?' dp-other':'');
+    el.textContent = c.day;
+    const cellDate = new Date(c.y, c.m, c.day);
+    if(sameDate(cellDate, today)) el.classList.add('dp-today');
+    if(dpSelectedDate && sameDate(cellDate, dpSelectedDate)) el.classList.add('dp-selected');
+    el.onclick = ()=> dpSelectDay(c.y, c.m, c.day);
+    grid.appendChild(el);
+  });
+}
+
+function dpChangeMonth(delta){
+  dpViewMonth += delta;
+  if(dpViewMonth<0){ dpViewMonth=11; dpViewYear--; }
+  if(dpViewMonth>11){ dpViewMonth=0; dpViewYear++; }
+  renderDp();
+}
+
+function dpMonthYearChange(){
+  dpViewMonth = +document.getElementById('dpMonth').value;
+  dpViewYear = +document.getElementById('dpYear').value;
+  renderDp();
+}
+
+function dpSelectDay(y,m,day){
+  applyDateToInput(new Date(y,m,day));
+}
+function dpSetToday(){
+  applyDateToInput(new Date());
+}
+function dpClear(){
+  if(dpActiveInput){
+    dpActiveInput.value = '';
+    dpActiveInput.dispatchEvent(new Event('change', {bubbles:true}));
+  }
+  closeDatePicker();
+}
+function applyDateToInput(dt){
+  if(!dpActiveInput) return;
+  dpActiveInput.value = toInputStr(dt);
+  dpActiveInput.dispatchEvent(new Event('change', {bubbles:true}));
+  closeDatePicker();
+}
+
+/* ---------- Date Calculator (standalone utility) ---------- */
+function dcCalc(){
+  const fromEl = document.getElementById('dcFrom');
+  const toEl = document.getElementById('dcTo');
+  const daysEl = document.getElementById('dcDays');
+  const resultEl = document.getElementById('dcResult');
+
+  const fromVal = fromEl.value.trim();
+  const toVal = toEl.value.trim();
+  const daysVal = daysEl.value.trim();
+  const from = d(fromVal);
+  const to = d(toVal);
+  const days = daysVal ? parseInt(daysVal, 10) : null;
+
+  if(fromVal && toVal){
+    if(!from || !to){
+      resultEl.textContent = 'Enter valid dates in DD/MM/YYYY format.';
+      return;
+    }
+    if(to < from){
+      resultEl.textContent = 'To date is before From date — check the dates entered.';
+      return;
+    }
+    const n = daysBetween(from, to);
+    daysEl.value = n;
+    resultEl.textContent = `${fmtDate(from)} to ${fmtDate(to)} = ${n} day(s), counting both dates.`;
+    return;
+  }
+
+  if(fromVal && daysVal && !toVal){
+    if(!from || !days || days < 1){
+      resultEl.textContent = 'Enter a valid From date and a positive number of days.';
+      return;
+    }
+    const to2 = addDays(from, days - 1);
+    toEl.value = toInputStr(to2);
+    resultEl.textContent = `${days} day(s) from ${fmtDate(from)} (inclusive) ends on ${fmtDate(to2)}.`;
+    return;
+  }
+
+  if(toVal && daysVal && !fromVal){
+    if(!to || !days || days < 1){
+      resultEl.textContent = 'Enter a valid To date and a positive number of days.';
+      return;
+    }
+    const from2 = addDays(to, -(days - 1));
+    fromEl.value = toInputStr(from2);
+    resultEl.textContent = `${days} day(s) ending on ${fmtDate(to)} (inclusive) started on ${fmtDate(from2)}.`;
+    return;
+  }
+
+  resultEl.textContent = '';
+}
+
+function dcClear(){
+  document.getElementById('dcFrom').value = '';
+  document.getElementById('dcTo').value = '';
+  document.getElementById('dcDays').value = '';
+  document.getElementById('dcResult').textContent = '';
+}
+
+document.addEventListener('mousedown', (e)=>{
+  const popup = document.getElementById('datePopup');
+  if(popup.style.display==='none') return;
+  if(popup.contains(e.target)) return;
+  if(dpActiveInput && e.target === dpActiveInput) return;
+  closeDatePicker();
+});
+
+document.querySelectorAll('#dcFrom, #dcTo, #spellStartInput').forEach(inp=> inp.addEventListener('focus', ()=>openDatePicker(inp)));
+
+recalc();
+</script>
+</body>
+</html>
+
